@@ -4,7 +4,7 @@ Search free, public-domain, and openly available books from one friendly Windows
 
 Floppyverse searches multiple catalogs at the same time and presents ebooks and audiobooks in a clean, dark interface.
 
-**Current version: `v1.1.0`**
+**Current version: `v1.1.1`**
 
 ![Floppyverse Book Search showing audiobook results](assets/floppyverse-book-search.png)
 
