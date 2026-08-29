@@ -80,6 +80,7 @@ app/                     Supporting application files
   floppyverse/           Application code and catalog integrations
   tests/                 Automated checks
   RUN.bat                Visible troubleshooting launcher
+  launch.cmd             Internal hidden-launch helper
   requirements.txt       Python dependencies
 ```
 
