@@ -20,6 +20,12 @@ class BookResult:
     description: str | None = None
     identifier: str | None = None
 
+    def __post_init__(self) -> None:
+        # Some library catalogs expose MARC subfield markers such as "$b"
+        # (subtitle) inside otherwise human-readable titles.
+        self.title = clean_catalog_text(self.title)
+        self.authors = [clean_catalog_text(author) for author in self.authors]
+
     @property
     def author_text(self) -> str:
         return ", ".join(self.authors) if self.authors else "Unknown author"
@@ -28,6 +34,12 @@ class BookResult:
 def _key_text(value: str) -> str:
     value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+
+def clean_catalog_text(value: str) -> str:
+    value = re.sub(r"\s*:\s*\$[a-z0-9]\s*", ": ", value, flags=re.IGNORECASE)
+    value = re.sub(r"\s*\$[a-z0-9]\s*", " ", value, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", value).strip()
 
 
 def work_key(item: BookResult) -> tuple[str, str, str]:
@@ -55,4 +67,3 @@ def deduplicate(items: list[BookResult]) -> list[BookResult]:
         current.duration = current.duration or item.duration
         current.chapters = current.chapters or item.chapters
     return sorted(merged.values(), key=lambda x: (_key_text(x.title), _key_text(x.author_text)))
-

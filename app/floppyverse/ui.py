@@ -117,7 +117,10 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__(); self.setWindowTitle("Floppyverse Book Search"); self.resize(980, 760); self.setMinimumSize(720, 540)
         self.setStyleSheet(STYLE); self.pool = QThreadPool(self); self.pool.setMaxThreadCount(6)
-        self.results = []; self.pending = set(); self.errors = {}; self.search_generation = 0; self._build_ui()
+        self.results = []; self.pending = set(); self.errors = {}; self.search_generation = 0
+        self._status_colors = ("#47c8ff", "#9f7aea", "#ff9f43", "#ff5ca8")
+        self._status_color_index = 0
+        self._build_ui()
 
     def _build_ui(self):
         root = QWidget(); outer = QVBoxLayout(root); outer.setContentsMargins(24, 20, 24, 18)
@@ -132,7 +135,12 @@ class MainWindow(QMainWindow):
         filters.addSpacing(18)
         self.source_buttons = self._filter_group(filters, [("All sources", "all"), ("Gutenberg", "Project Gutenberg"), ("LibriVox", "LibriVox"), ("Internet Archive", "Internet Archive")])
         filters.addStretch(); outer.addLayout(filters)
-        self.status = QLabel("Ready — try “H. G. Wells”, “Frankenstein”, or “science fiction”."); self.status.setObjectName("muted"); self.status.setWordWrap(True); outer.addWidget(self.status)
+        status_row = QHBoxLayout(); status_row.setSpacing(8)
+        self.status_indicator = QLabel("●"); self.status_indicator.setFixedWidth(16); status_row.addWidget(self.status_indicator)
+        self.status = QLabel(); self.status.setObjectName("muted"); self.status.setWordWrap(True); status_row.addWidget(self.status, 1)
+        outer.addLayout(status_row)
+        self.status_timer = QTimer(self); self.status_timer.setInterval(260); self.status_timer.timeout.connect(self._animate_status)
+        self._set_status("Ready — try “H. G. Wells”, “Frankenstein”, or “science fiction”.", "ready")
         scroll = QScrollArea(); scroll.setWidgetResizable(True); self.results_host = QWidget(); self.results_layout = QVBoxLayout(self.results_host)
         self.results_layout.setContentsMargins(0, 6, 8, 6); self.results_layout.setSpacing(10); self.results_layout.addStretch(); scroll.setWidget(self.results_host)
         outer.addWidget(scroll, 1); self.setCentralWidget(root); QTimer.singleShot(0, self.query.setFocus)
@@ -146,10 +154,10 @@ class MainWindow(QMainWindow):
 
     def start_search(self):
         query = self.query.text().strip()
-        if len(query) < 2: self.status.setText("Enter at least two characters to search."); return
+        if len(query) < 2: self._set_status("Enter at least two characters to search.", "warning"); return
         self.search_generation += 1; generation = self.search_generation; self.results = []; self.errors = {}
         self.pending = {source.name for source in ALL_SOURCES}; self.search_button.setEnabled(False)
-        self.status.setText("Searching Project Gutenberg, LibriVox, and Internet Archive…"); self.render_results()
+        self._set_status("Searching Project Gutenberg, LibriVox, and Internet Archive…", "searching"); self.render_results()
         for source in ALL_SOURCES:
             worker = SearchWorker(source, query)
             worker.signals.succeeded.connect(lambda name, items, g=generation: self._received(g, items))
@@ -165,11 +173,27 @@ class MainWindow(QMainWindow):
     def _finished(self, generation, name):
         if generation != self.search_generation: return
         self.pending.discard(name)
-        if self.pending: self.status.setText(f"Found {len(self.results)} results — still searching {', '.join(sorted(self.pending))}…")
+        if self.pending: self._set_status(f"Found {len(self.results)} results — still searching {', '.join(sorted(self.pending))}…", "searching")
         else:
             self.search_button.setEnabled(True); suffix = f" {len(self.errors)} source(s) could not be reached." if self.errors else " All sources completed."
-            self.status.setText(f"Found {len(self.results)} unique results.{suffix}"); self.status.setToolTip("\n".join(self.errors.values()))
+            self._set_status(f"Found {len(self.results)} unique results.{suffix}", "done"); self.status.setToolTip("\n".join(self.errors.values()))
         self.render_results()
+
+    def _set_status(self, message, state):
+        self.status.setText(message)
+        if state == "searching":
+            self.status_indicator.setText("●")
+            if not self.status_timer.isActive(): self.status_timer.start()
+            self._animate_status()
+        else:
+            self.status_timer.stop()
+            icon, color = {"done": ("✓", "#42d483"), "warning": ("!", "#ffb454"), "ready": ("●", "#758195")}[state]
+            self.status_indicator.setText(icon); self.status_indicator.setStyleSheet(f"color:{color};font-size:18px;font-weight:700;")
+
+    def _animate_status(self):
+        color = self._status_colors[self._status_color_index % len(self._status_colors)]
+        self._status_color_index += 1
+        self.status_indicator.setStyleSheet(f"color:{color};font-size:18px;font-weight:700;")
 
     @staticmethod
     def _selected(group):

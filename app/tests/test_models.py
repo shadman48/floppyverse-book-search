@@ -4,6 +4,11 @@ from floppyverse.sources.gutenberg import GutenbergSource
 from floppyverse.sources.internet_archive import InternetArchiveSource
 
 class ModelTests(unittest.TestCase):
+    def test_removes_marc_subfield_markers(self):
+        item = BookResult("The red planet : $b a science fiction novel", ["Writer, A. $c editor"], "Catalog", "ebook")
+        self.assertEqual(item.title, "The red planet: a science fiction novel")
+        self.assertEqual(item.authors, ["Writer, A. editor"])
+
     def test_deduplicates_same_work_and_medium(self):
         a = BookResult("Frankenstein", ["Mary Shelley"], "Project Gutenberg", "ebook", ["EPUB"])
         b = BookResult("Frankenstein!", ["Mary Shelley"], "Internet Archive", "ebook", ["PDF"])
