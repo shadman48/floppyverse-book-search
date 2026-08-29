@@ -15,6 +15,7 @@ from .workers import SearchWorker
 STYLE = """
 QWidget { background:#11151c; color:#e8edf5; font-family:'Segoe UI'; font-size:14px; }
 QMainWindow { background:#0c1016; }
+QLabel { background:transparent; }
 QLineEdit { background:#1b2230; border:1px solid #354055; border-radius:9px; padding:11px 13px; font-size:16px; }
 QLineEdit:focus { border-color:#6aa9ff; }
 QPushButton { background:#232c3b; border:1px solid #3a465b; border-radius:8px; padding:8px 13px; }
@@ -45,11 +46,12 @@ class CoverWorker(QRunnable):
 class WrappedLabel(QLabel):
     """A wrapping label that always reserves the full rendered text height."""
 
-    def __init__(self, text="", parent=None, extra_height=4):
+    def __init__(self, text="", parent=None, extra_height=4, compact=False):
         super().__init__(text, parent)
         self._extra_height = extra_height
         self.setWordWrap(True)
-        policy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        horizontal = QSizePolicy.Maximum if compact else QSizePolicy.Expanding
+        policy = QSizePolicy(horizontal, QSizePolicy.Fixed)
         policy.setHeightForWidth(True)
         self.setSizePolicy(policy)
 
@@ -87,13 +89,14 @@ class ResultCard(QFrame):
         self.cover.setStyleSheet("background:#222b39;border-radius:6px;font-size:28px;")
         row.addWidget(self.cover)
         text = QVBoxLayout()
-        self.title_label = WrappedLabel(item.title); self.title_label.setObjectName("title"); text.addWidget(self.title_label)
-        self.author_label = WrappedLabel(item.author_text); self.author_label.setObjectName("muted"); text.addWidget(self.author_label)
+        self.title_label = WrappedLabel(item.title, compact=True); self.title_label.setObjectName("title"); text.addWidget(self.title_label)
+        self.author_label = WrappedLabel(item.author_text, compact=True); self.author_label.setObjectName("muted"); text.addWidget(self.author_label)
         details = [item.source, " / ".join(item.formats) or item.media_type.title()]
         if item.duration: details.append(item.duration)
         if item.chapters: details.append(f"{item.chapters} chapters")
-        self.meta_label = WrappedLabel("  •  ".join(details), extra_height=8); self.meta_label.setObjectName("badge")
-        self.meta_label.setMaximumWidth(620); text.addWidget(self.meta_label); text.addStretch()
+        self.meta_label = WrappedLabel("  •  ".join(details), extra_height=8, compact=True); self.meta_label.setObjectName("badge")
+        natural_meta_width = self.meta_label.fontMetrics().horizontalAdvance(self.meta_label.text()) + 28
+        self.meta_label.setMaximumWidth(min(620, natural_meta_width)); text.addWidget(self.meta_label); text.addStretch()
         actions = QHBoxLayout(); actions.setAlignment(Qt.AlignLeft)
         for label, url in (("Open", item.open_url), ("Download", item.download_url)):
             button = QPushButton(label); button.setEnabled(bool(url))
@@ -136,7 +139,8 @@ class MainWindow(QMainWindow):
         self.source_buttons = self._filter_group(filters, [("All sources", "all"), ("Gutenberg", "Project Gutenberg"), ("LibriVox", "LibriVox"), ("Internet Archive", "Internet Archive")])
         filters.addStretch(); outer.addLayout(filters)
         status_row = QHBoxLayout(); status_row.setSpacing(8)
-        self.status_indicator = QLabel("●"); self.status_indicator.setFixedWidth(16); status_row.addWidget(self.status_indicator)
+        self.status_indicator = QLabel("●"); self.status_indicator.setAlignment(Qt.AlignCenter)
+        self.status_indicator.setFixedSize(30, 30); status_row.addWidget(self.status_indicator)
         self.status = QLabel(); self.status.setObjectName("muted"); self.status.setWordWrap(True); status_row.addWidget(self.status, 1)
         outer.addLayout(status_row)
         self.status_timer = QTimer(self); self.status_timer.setInterval(260); self.status_timer.timeout.connect(self._animate_status)
@@ -188,12 +192,12 @@ class MainWindow(QMainWindow):
         else:
             self.status_timer.stop()
             icon, color = {"done": ("✓", "#42d483"), "warning": ("!", "#ffb454"), "ready": ("●", "#758195")}[state]
-            self.status_indicator.setText(icon); self.status_indicator.setStyleSheet(f"color:{color};font-size:18px;font-weight:700;")
+            self.status_indicator.setText(icon); self.status_indicator.setStyleSheet(f"color:{color};font-size:26px;font-weight:800;")
 
     def _animate_status(self):
         color = self._status_colors[self._status_color_index % len(self._status_colors)]
         self._status_color_index += 1
-        self.status_indicator.setStyleSheet(f"color:{color};font-size:18px;font-weight:700;")
+        self.status_indicator.setStyleSheet(f"color:{color};font-size:26px;font-weight:800;")
 
     @staticmethod
     def _selected(group):
