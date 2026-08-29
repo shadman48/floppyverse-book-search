@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import partial
 
 import requests
-from PySide6.QtCore import QByteArray, QThreadPool, Qt, QTimer, QUrl, QRunnable, Signal
+from PySide6.QtCore import QByteArray, QThreadPool, Qt, QTimer, QUrl, QRunnable, Signal, QSize
 from PySide6.QtGui import QDesktopServices, QPixmap
 from PySide6.QtWidgets import (QButtonGroup, QFrame, QHBoxLayout, QLabel, QLineEdit,
     QMainWindow, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget)
@@ -42,25 +42,58 @@ class CoverWorker(QRunnable):
             pass
 
 
+class WrappedLabel(QLabel):
+    """A wrapping label that always reserves the full rendered text height."""
+
+    def __init__(self, text="", parent=None, extra_height=4):
+        super().__init__(text, parent)
+        self._extra_height = extra_height
+        self.setWordWrap(True)
+        policy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        policy.setHeightForWidth(True)
+        self.setSizePolicy(policy)
+
+    def heightForWidth(self, width):
+        margins = self.contentsMargins()
+        available = max(1, width - margins.left() - margins.right())
+        bounds = self.fontMetrics().boundingRect(
+            0, 0, available, 100_000,
+            int(Qt.TextWordWrap | Qt.AlignLeft | Qt.AlignTop), self.text()
+        )
+        return bounds.height() + margins.top() + margins.bottom() + self._extra_height
+
+    def sizeHint(self):
+        hint = super().sizeHint()
+        return QSize(hint.width(), self.heightForWidth(max(1, self.width())))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        needed = self.heightForWidth(event.size().width())
+        if self.minimumHeight() != needed or self.maximumHeight() != needed:
+            self.setFixedHeight(needed)
+            self.updateGeometry()
+
+
 class ResultCard(QFrame):
     cover_ready = Signal(QByteArray)
 
     def __init__(self, item: BookResult, parent=None):
         super().__init__(parent)
         self.setObjectName("card")
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         row = QHBoxLayout(self); row.setContentsMargins(14, 14, 14, 14); row.setSpacing(14)
         self.cover = QLabel("📖" if item.media_type == "ebook" else "🎧")
         self.cover.setAlignment(Qt.AlignCenter); self.cover.setFixedSize(76, 108)
         self.cover.setStyleSheet("background:#222b39;border-radius:6px;font-size:28px;")
         row.addWidget(self.cover)
         text = QVBoxLayout()
-        title = QLabel(item.title); title.setObjectName("title"); title.setWordWrap(True); text.addWidget(title)
-        author = QLabel(item.author_text); author.setObjectName("muted"); author.setWordWrap(True); text.addWidget(author)
+        self.title_label = WrappedLabel(item.title); self.title_label.setObjectName("title"); text.addWidget(self.title_label)
+        self.author_label = WrappedLabel(item.author_text); self.author_label.setObjectName("muted"); text.addWidget(self.author_label)
         details = [item.source, " / ".join(item.formats) or item.media_type.title()]
         if item.duration: details.append(item.duration)
         if item.chapters: details.append(f"{item.chapters} chapters")
-        meta = QLabel("  •  ".join(details)); meta.setObjectName("badge"); meta.setWordWrap(True)
-        meta.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred); text.addWidget(meta); text.addStretch()
+        self.meta_label = WrappedLabel("  •  ".join(details), extra_height=8); self.meta_label.setObjectName("badge")
+        self.meta_label.setMaximumWidth(620); text.addWidget(self.meta_label); text.addStretch()
         actions = QHBoxLayout(); actions.setAlignment(Qt.AlignLeft)
         for label, url in (("Open", item.open_url), ("Download", item.download_url)):
             button = QPushButton(label); button.setEnabled(bool(url))
@@ -153,4 +186,3 @@ class MainWindow(QMainWindow):
             self.results_layout.insertWidget(0, empty)
         else:
             for item in visible: self.results_layout.insertWidget(self.results_layout.count() - 1, ResultCard(item))
-
