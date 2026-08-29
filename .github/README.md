@@ -4,6 +4,10 @@ Search free, public-domain, and openly available books from one friendly Windows
 
 Floppyverse searches multiple catalogs at the same time and presents ebooks and audiobooks in a clean, dark interface.
 
+**Current version: `v1.1.0`**
+
+![Floppyverse Book Search showing audiobook results](assets/floppyverse-book-search.png)
+
 ## ✨ Features
 
 - 🔎 Search by title, author, or subject
@@ -70,6 +74,18 @@ Run the tests with:
 ```powershell
 .venv\Scripts\python -m unittest discover -s tests -v
 ```
+
+## 🏷️ Versioning
+
+The authoritative version is stored in `app/floppyverse/__init__.py` and appears in the app window and title bar.
+
+Every published application change must increment the version:
+
+- **Patch** (`1.1.0` → `1.1.1`) for fixes and small refinements
+- **Minor** (`1.1.0` → `1.2.0`) for new features
+- **Major** (`1.x` → `2.0`) for incompatible or substantial redesigns
+
+Git tags and GitHub releases use the same version prefixed with `v`.
 
 ## 🗂️ Project layout
 

@@ -1,9 +1,14 @@
 import unittest
+import re
+from floppyverse import __version__
 from floppyverse.models import BookResult, deduplicate
 from floppyverse.sources.gutenberg import GutenbergSource
 from floppyverse.sources.internet_archive import InternetArchiveSource
 
 class ModelTests(unittest.TestCase):
+    def test_version_uses_semantic_versioning(self):
+        self.assertRegex(__version__, r"^\d+\.\d+\.\d+$")
+
     def test_removes_marc_subfield_markers(self):
         item = BookResult("The red planet : $b a science fiction novel", ["Writer, A. $c editor"], "Catalog", "ebook")
         self.assertEqual(item.title, "The red planet: a science fiction novel")

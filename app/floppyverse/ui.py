@@ -8,6 +8,7 @@ from PySide6.QtGui import QDesktopServices, QPixmap
 from PySide6.QtWidgets import (QButtonGroup, QFrame, QHBoxLayout, QLabel, QLineEdit,
     QMainWindow, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget)
 
+from . import __version__
 from .models import BookResult, deduplicate
 from .sources import ALL_SOURCES
 from .workers import SearchWorker
@@ -118,7 +119,7 @@ class ResultCard(QFrame):
 
 class MainWindow(QMainWindow):
     def __init__(self):
-        super().__init__(); self.setWindowTitle("Floppyverse Book Search"); self.resize(980, 760); self.setMinimumSize(720, 540)
+        super().__init__(); self.setWindowTitle(f"Floppyverse Book Search v{__version__}"); self.resize(980, 760); self.setMinimumSize(720, 540)
         self.setStyleSheet(STYLE); self.pool = QThreadPool(self); self.pool.setMaxThreadCount(6)
         self.results = []; self.pending = set(); self.errors = {}; self.search_generation = 0
         self._status_colors = ("#47c8ff", "#9f7aea", "#ff9f43", "#ff5ca8")
@@ -127,7 +128,11 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self):
         root = QWidget(); outer = QVBoxLayout(root); outer.setContentsMargins(24, 20, 24, 18)
-        heading = QLabel("Floppyverse Book Search"); heading.setStyleSheet("font-size:25px;font-weight:700;"); outer.addWidget(heading)
+        heading_row = QHBoxLayout()
+        heading = QLabel("Floppyverse Book Search"); heading.setStyleSheet("font-size:25px;font-weight:700;"); heading_row.addWidget(heading)
+        version = QLabel(f"v{__version__}"); version.setStyleSheet("color:#9fc5ff;background:#1e3554;border-radius:7px;padding:3px 8px;font-weight:600;")
+        version.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred); heading_row.addWidget(version); heading_row.addStretch()
+        outer.addLayout(heading_row)
         subtitle = QLabel("Find free, public-domain and openly available ebooks and audiobooks"); subtitle.setObjectName("muted"); outer.addWidget(subtitle)
         search_row = QHBoxLayout(); self.query = QLineEdit(); self.query.setPlaceholderText("Search by title, author, or subject…")
         self.query.returnPressed.connect(self.start_search); search_row.addWidget(self.query, 1)
